@@ -1,0 +1,1 @@
+{	"name": "test",	"mapping": {		"masterWaybill": {			"constant": "250-91974783" 		},		"houseWaybill": {			"column": 0		}	}}
