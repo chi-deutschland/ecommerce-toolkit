@@ -26,10 +26,25 @@
       "content": "$D:SENDER NAME",
       "column": 3
     },
-    "shipperAddress": {
+    "shipperAddressLine1": {
       "title": "Shipper Address Line 1",
       "content": "$E:SHIPPER ADD 1",
       "column": 4
+    },
+    "shipperAddressLine2": {
+      "title": "Shipper Address Line 2",
+      "content": "$F:SHIPPER ADD 2",
+      "column": 5
+    },
+    "shipperAddressLine3": {
+      "title": "Shipper Address Line 3",
+      "content": "$G:SHIPPER ADD 3",
+      "column": 6
+    },
+    "shipperCity": {
+      "title": "Shipper City",
+      "content": "$H:SENDER CITY",
+      "column": 7
     },
     "shipperState": {
       "title": "Shipper State/County/Province",
@@ -51,10 +66,25 @@
       "content": "$L:RECEIPIENT NAME",
       "column": 11
     },
-    "recipientAddress": {
+    "recipientAddressLine1": {
       "title": "Recipient Address Line 1",
       "content": "$M:RECEIPIENT ADD 1",
       "column": 12
+    },
+    "recipientAddressLine2": {
+      "title": "Recipient Address Line 2",
+      "content": "$N:RECEIPIENT ADD 2",
+      "column": 13
+    },
+    "recipientAddressLine3": {
+      "title": "Recipient Address Line 3",
+      "content": "$O:RECEIPIENT ADD 3",
+      "column": 14
+    },
+    "recipientCity": {
+      "title": "Recipient City",
+      "content": "$P:RECEIPIENT CITY",
+      "column": 15
     },
     "recipientState": {
       "title": "Recipient State/County/Province",
@@ -66,8 +96,8 @@
       "content": "$R:RECEIPIENT POSTCODE",
       "column": 17
     },
-    "recipientCountry": {
-      "title": "Recipient State/County/Province",
+    "recipientCounty": {
+      "title": "Recipient County",
       "content": "$Q:RECEIPIENT COUNTY",
       "column": 16
     },

@@ -33,17 +33,24 @@ type Schema struct {
 	ShippingReference   ColumnMapping `json:"shippingReference"`
 	BoxNumber           ColumnMapping `json:"boxNumber"`
 
-	ShipperName     ColumnMapping `json:"shipperName"`
-	ShipperAddress  ColumnMapping `json:"shipperAddress"`
-	ShipperState    ColumnMapping `json:"shipperState"`
-	ShipperPostcode ColumnMapping `json:"shipperPostcode"`
-	ShipperCountry  ColumnMapping `json:"shipperCountry"`
+	ShipperName         ColumnMapping `json:"shipperName"`
+	ShipperAddressLine1 ColumnMapping `json:"shipperAddressLine1"`
+	ShipperAddressLine2 ColumnMapping `json:"shipperAddressLine2"`
+	ShipperAddressLine3 ColumnMapping `json:"shipperAddressLine3"`
+	ShipperCity         ColumnMapping `json:"shipperCity"`
+	ShipperState        ColumnMapping `json:"shipperState"`
+	ShipperPostcode     ColumnMapping `json:"shipperPostcode"`
+	ShipperCountry      ColumnMapping `json:"shipperCountry"`
 
-	RecipientName     ColumnMapping `json:"recipientName"`
-	RecipientAddress  ColumnMapping `json:"recipientAddress"`
-	RecipientState    ColumnMapping `json:"recipientState"`
-	RecipientPostcode ColumnMapping `json:"recipientPostcode"`
-	RecipientCountry  ColumnMapping `json:"recipientCountry"`
+	RecipientName         ColumnMapping `json:"recipientName"`
+	RecipientAddressLine1 ColumnMapping `json:"recipientAddressLine1"`
+	RecipientAddressLine2 ColumnMapping `json:"recipientAddressLine2"`
+	RecipientAddressLine3 ColumnMapping `json:"recipientAddressLine3"`
+	RecipientCity         ColumnMapping `json:"recipientCity"`
+	RecipientState        ColumnMapping `json:"recipientState"`
+	RecipientPostcode     ColumnMapping `json:"recipientPostcode"`
+	RecipientCounty       ColumnMapping `json:"recipientCounty"`
+	RecipientCountry      ColumnMapping `json:"recipientCountry"`
 
 	TotalShipmentGrossWeight ColumnMapping `json:"totalShipmentGrossWeight"`
 	ItemUnitPriceConcurrency ColumnMapping `json:"itemUnitPriceConcurrency"`
@@ -304,7 +311,8 @@ func readPipeline(pipelineName string) (*Pipeline, error) {
 }
 
 func excelToOneRecord(pipeline *Schema, rows *excelize.Rows, filename string) (*Waybill, error) {
-	waybill := NewMasterWaybill()
+	masterWaybill := NewMasterWaybill()
+
 	for rows.Next() {
 		columns, err := rows.Columns()
 		if err != nil {
@@ -317,51 +325,189 @@ func excelToOneRecord(pipeline *Schema, rows *excelize.Rows, filename string) (*
 		if pipeline.MasterWaybillNumber.Column != nil {
 			masterNumber := SanitizeMawb(columns[*pipeline.MasterWaybillNumber.Column])
 			prefix, suffix := SplitMawb(masterNumber)
-			waybill.WaybillNumber = suffix
-			waybill.WaybillPrefix = prefix
+			masterWaybill.WaybillNumber = suffix
+			masterWaybill.WaybillPrefix = prefix
 		} else if pipeline.MasterWaybillNumber.UseFilename != nil {
 			masterNumber := SanitizeMawb(strings.TrimSuffix(filename, ".xlsx"))
 			prefix, suffix := SplitMawb(masterNumber)
-			waybill.WaybillNumber = suffix
-			waybill.WaybillPrefix = prefix
+			masterWaybill.WaybillNumber = suffix
+			masterWaybill.WaybillPrefix = prefix
 		} else if pipeline.MasterWaybillNumber.Constant != nil {
+			// TODO: review. There is no reason to have a constant master waybill number throughout the pipeline
 			prefix, suffix := SplitMawb(SanitizeMawb(*pipeline.MasterWaybillNumber.Constant))
-			waybill.WaybillNumber = suffix
-			waybill.WaybillPrefix = prefix
+			masterWaybill.WaybillNumber = suffix
+			masterWaybill.WaybillPrefix = prefix
 		}
 
-		houseWaybill := &Waybill{
-			WaybillType: WaybillTypeHouse,
-			Type:        "cargo:Waybill",
-			Shipment: &Shipment{
-				Type: "Shipment",
-			},
-		}
-		if pipeline.HouseWaybillNumber.Column != nil {
-			houseWaybill.WaybillNumber = columns[*pipeline.HouseWaybillNumber.Column]
-		} else if pipeline.HouseWaybillNumber.Constant != nil {
-			houseWaybill.WaybillNumber = *pipeline.HouseWaybillNumber.Constant
-		}
+		houseWaybillNumber := columns[*pipeline.HouseWaybillNumber.Column]
+		var houseWaybill *Waybill
 
-		if pipeline.ShippingReference.Column != nil {
-			houseWaybill.ShippingRef = columns[*pipeline.ShippingReference.Column]
-		}
+		item := newItem(
+			columns[*pipeline.ProductSKU.Column],
+			columns[*pipeline.ProductHSCode.Column],
+			columns[*pipeline.ItemQuantity.Column],
+		)
 
-		if pipeline.TotalShipmentGrossWeight.Column != nil {
-			houseWaybill.Shipment.TotalGrossWeight = &Value{
-				Type:           "Value",
-				NumericalValue: columns[*pipeline.TotalShipmentGrossWeight.Column],
-				Unit: &Unit{
-					Type:              "CodeListElement",
-					Code:              "KGM",
-					CodeListReference: "https://vocabulary.uncefact.org/WeightUnitMeasureCode",
-				},
+		piece := newPiece(
+			[]*Item{item},
+			columns[*pipeline.BoxNumber.Column],
+			columns[*pipeline.ShipmentGoodsDescription.Column],
+		)
+
+		if masterWaybill.HouseWaybills[HouseWaybillNumber(houseWaybillNumber)] != nil {
+			houseWaybill = masterWaybill.HouseWaybills[HouseWaybillNumber(houseWaybillNumber)]
+			houseWaybill.Shipment.Pieces = append(houseWaybill.Shipment.Pieces, piece)
+		} else {
+			houseWaybill = newHouseWaybill()
+
+			if pipeline.ShippingReference.Column != nil {
+				houseWaybill.ShippingRef = columns[*pipeline.ShippingReference.Column]
+			}
+
+			// TODO: check if address exists
+			// TODO: review hardcoded GB
+			arrivalCountryCode := "DE"
+			arrivalRegionCode := columns[*pipeline.RecipientCounty.Column]
+			arrivalStreetAddressLines := []string{
+				columns[*pipeline.RecipientAddressLine1.Column],
+				columns[*pipeline.RecipientAddressLine2.Column],
+				columns[*pipeline.RecipientAddressLine3.Column],
+				columns[*pipeline.RecipientCity.Column],
+				columns[*pipeline.RecipientPostcode.Column],
+			}
+			houseWaybill.ArrivalLocation = newLocation(arrivalCountryCode, arrivalRegionCode, arrivalStreetAddressLines)
+
+			departureCountryCode := columns[*pipeline.ShipperCountry.Column]
+			departureRegionCode := columns[*pipeline.ShipperState.Column]
+			departureStreetAddressLines := []string{
+				columns[*pipeline.ShipperAddressLine1.Column],
+				columns[*pipeline.ShipperAddressLine2.Column],
+				columns[*pipeline.ShipperAddressLine3.Column],
+				columns[*pipeline.ShipperCity.Column],
+				columns[*pipeline.ShipperPostcode.Column],
+			}
+			houseWaybill.DepartureLocation = newLocation(departureCountryCode, departureRegionCode, departureStreetAddressLines)
+
+			shipper := newShipper(columns[*pipeline.ShipperName.Column])
+			customer := newCustomer(columns[*pipeline.RecipientName.Column])
+
+			houseWaybill.InvolvedParties = []*Party{shipper, customer}
+
+			houseWaybill.Shipment = newShipment(
+				[]*Piece{piece},
+				columns[*pipeline.TotalShipmentGrossWeight.Column],
+			)
+
+			masterWaybill.HouseWaybills = map[HouseWaybillNumber]*Waybill{
+				HouseWaybillNumber(houseWaybillNumber): houseWaybill,
 			}
 		}
-
-		waybill.HouseWaybills = append(waybill.HouseWaybills, houseWaybill)
 	}
-	return waybill, nil
+	return masterWaybill, nil
+}
+
+func newShipment(pieces []*Piece, totalGrossWeight string) *Shipment {
+	return &Shipment{
+		Type:             "cargo:Shipment",
+		TotalGrossWeight: newTotalGrossWeight(totalGrossWeight),
+		Pieces:           pieces,
+	}
+}
+
+func newTotalGrossWeight(totalGrossWeight string) *Value {
+	return newValue(totalGrossWeight, newCodeListElement("KGM", "https://vocabulary.uncefact.org/WeightUnitMeasureCode", "")) // TODO: move to consts
+}
+
+func newCustomer(customerName string) *Party {
+	customerContact := "CUSTOMER_CONTACT"
+	return newParty(customerName, &customerContact, nil)
+}
+
+type LogisticsAgent struct {
+	Name        string  `json:"cargo:name,omitempty"`
+	ContactRole *string `json:"cargo:contactRole,omitempty"`
+	Type        string  `json:"@type"`
+}
+
+type Party struct {
+	PartyDetails *LogisticsAgent  `json:"cargo:partyDetails,omitempty"`
+	PartyRole    *CodeListElement `json:"cargo:partyRole,omitempty"`
+	Type         string           `json:"@type"`
+}
+
+func newShipper(shipperName string) *Party {
+	// TODO: move strings to consts
+	return newParty(
+		shipperName,
+		nil,
+		newCodeListElement("SHP", "https://onerecord.iata.org/ns/coreCodeLists", "1.0.0"),
+	)
+}
+
+func newParty(logisticsAgentName string, contactRole *string, partyRole *CodeListElement) *Party {
+	return &Party{
+		PartyDetails: newLogisticsAgent(logisticsAgentName, contactRole),
+		PartyRole:    partyRole,
+		Type:         "cargo:Party",
+	}
+}
+
+func newLogisticsAgent(name string, contactRole *string) *LogisticsAgent {
+	return &LogisticsAgent{
+		Name:        name,
+		ContactRole: contactRole,
+		Type:        "cargo:LogisticsAgent",
+	}
+}
+
+func newLocation(countryCode, regionCode string, streetAddressLines []string) *Location {
+	// TODO: check if address exists
+	return &Location{
+		Address: newAddress(countryCode, regionCode, streetAddressLines),
+		Type:    "cargo:Location",
+	}
+}
+
+func newAddress(countryCode, regionCode string, streetAddressLines []string) *Address {
+	// TODO: check if address exists
+	return &Address{
+		Country:            newCountry(countryCode),
+		RegionCode:         newRegionCode(regionCode),
+		StreetAddressLines: streetAddressLines,
+		Type:               "cargo:Address",
+	}
+}
+
+func newRegionCode(regionCode string) *CodeListElement {
+	return newCodeListElement(regionCode, regionCodeListReference, regionCodeListVersion)
+}
+
+// TODO: consider using specific type instead of all strings
+const (
+	regionCodeListReference = "https://www.iso.org/obp/ui/#iso:code:3166"
+	regionCodeListVersion   = "3166-2"
+
+	countryCodeListReference = "https://vocabulary.uncefact.org/CountryId"
+)
+
+func newCodeListElement(code, reference, version string) *CodeListElement {
+	return &CodeListElement{
+		Type:              "cargo:CodeListElement",
+		Code:              code,
+		CodeListVersion:   version,
+		CodeListReference: reference,
+	}
+}
+
+func newCountry(countryCode string) *CodeListElement {
+	return newCodeListElement(countryCode, countryCodeListReference, "")
+}
+
+func newHouseWaybill() *Waybill {
+	return &Waybill{
+		WaybillType: WaybillTypeHouse,
+		Type:        "cargo:Waybill",
+	}
 }
 
 func sendWaybill(waybill *Waybill) error {
@@ -395,13 +541,37 @@ func sendWaybill(waybill *Waybill) error {
 	return nil
 }
 
+type HouseWaybillNumber string
+
+type CodeListElement struct {
+	Code              string `json:"cargo:code,omitempty"`
+	CodeListReference string `json:"cargo:codeListReference,omitempty"`
+	CodeListVersion   string `json:"cargo:codeListVersion,omitempty"`
+	Type              string `json:"@type"`
+}
+
+type Address struct {
+	Country            *CodeListElement `json:"cargo:country,omitempty"`
+	RegionCode         *CodeListElement `json:"cargo:regionCode,omitempty"`
+	StreetAddressLines []string         `json:"cargo:streetAddressLines,omitempty"`
+	Type               string           `json:"@type"`
+}
+
+type Location struct {
+	Address *Address `json:"cargo:Address,omitempty"`
+	Type    string   `json:"@type"`
+}
+
 type Waybill struct {
-	WaybillNumber string      `json:"cargo:waybillNumber,omitempty"`
-	WaybillPrefix string      `json:"cargo:waybillPrefix,omitempty"`
-	WaybillType   WaybillType `json:"cargo:waybillType,omitempty"`
-	HouseWaybills []*Waybill  `json:"cargo:houseWaybills,omitempty"`
-	ShippingRef   string      `json:"cargo:shippingRefNo,omitempty"`
-	Shipment      *Shipment   `json:"cargo:shipment,omitempty"`
+	ArrivalLocation   *Location                       `json:"cargo:arrivalLocation,omitempty"`
+	DepartureLocation *Location                       `json:"cargo:departureLocation,omitempty"`
+	WaybillNumber     string                          `json:"cargo:waybillNumber,omitempty"`
+	WaybillPrefix     string                          `json:"cargo:waybillPrefix,omitempty"`
+	WaybillType       WaybillType                     `json:"cargo:waybillType,omitempty"`
+	HouseWaybills     map[HouseWaybillNumber]*Waybill `json:"cargo:houseWaybills,omitempty"`
+	InvolvedParties   []*Party                        `json:"cargo:involvedParties,omitempty"`
+	ShippingRef       string                          `json:"cargo:shippingRefNo,omitempty"`
+	Shipment          *Shipment                       `json:"cargo:shipment,omitempty"`
 
 	// JSON-LD stuff
 	Context Context `json:"@context"`
@@ -417,28 +587,114 @@ func NewMasterWaybill() *Waybill {
 		Context: Context{
 			Cargo: "https://onerecord.iata.org/ns/cargo#",
 		},
-		Type: "cargo:waybill",
+		Type:        "cargo:Waybill",
+		WaybillType: WaybillTypeMaster,
 	}
 }
 
 type Shipment struct {
-	Type             string `json:"@type"`
-	TotalGrossWeight *Value `json:"totalGrossWeight,omitempty"`
+	Pieces           []*Piece `json:"cargo:pieces,omitempty"`
+	Type             string   `json:"@type"`
+	TotalGrossWeight *Value   `json:"cargo:totalGrossWeight,omitempty"`
 }
 
 type Value struct {
-	Type           string `json:"@type"`
-	NumericalValue string `json:"numericalValue,omitempty"`
-	Unit           *Unit  `json:"unit,omitempty"`
+	Type           string           `json:"@type"`
+	NumericalValue string           `json:"cargo:numericalValue,omitempty"`
+	Unit           *CodeListElement `json:"cargo:unit,omitempty"`
 }
 
-type Unit struct {
-	Type              string `json:"@type"`
-	Code              string `json:"code,omitempty"`
-	CodeListReference string `json:"codeListReference,omitempty"`
+type OtherIdentifier struct {
+	Type                string `json:"@type"`
+	OtherIdentifierType string `json:"cargo:otherIdentifierType,omitempty"`
+	TextualValue        string `json:"cargo:textualValue,omitempty"`
 }
 
-type Piece struct{}
+func NewOtherIdentifier(otherIdentifierType, textualValue string) *OtherIdentifier {
+	return &OtherIdentifier{
+		Type:                "cargo:OtherIdentifier",
+		OtherIdentifierType: otherIdentifierType,
+		TextualValue:        textualValue,
+	}
+}
+
+type Product struct {
+	OtherIdentifiers []*OtherIdentifier `json:"cargo:otherIdentifiers,omitempty"`
+	HsCode           *CodeListElement   `json:"cargo:hsCode,omitempty"`
+	HsType           string             `json:"cargo:hsType,omitempty"`
+	Type             string             `json:"@type"`
+}
+
+func NewProduct(skuNumber, hsCode string) *Product {
+	var otherIdentifiers []*OtherIdentifier
+	if skuNumber != "" {
+		otherIdentifiers = []*OtherIdentifier{NewOtherIdentifier("SKU", "")}
+	}
+
+	// TODO: move to consts
+	const hsCodeType = "UN Standard International Trade Classification"
+
+	return &Product{
+		OtherIdentifiers: otherIdentifiers,
+		HsCode:           newHsCode(hsCode),
+		HsType:           hsCodeType,
+		Type:             "cargo:Product",
+	}
+}
+
+func newHsCode(hsCode string) *CodeListElement {
+	// TODO: move consts
+	const hsCodeListReference = "www.tariffnumber.com"
+	const hsCodeListVersion = "2024"
+	return newCodeListElement(hsCode, hsCodeListReference, hsCodeListVersion)
+}
+
+type Item struct {
+	OfProduct    *Product `json:"cargo:ofProduct,omitempty"`
+	ItemQuantity *Value   `json:"cargo:itemQuantity,omitempty"`
+	UnitPrice    *Value   `json:"cargo:unitPrice,omitempty"`
+	Type         string   `json:"@type"`
+}
+
+func newItem(skuNumber, hsCode, itemQuantity string) *Item {
+	return &Item{
+		OfProduct:    NewProduct(skuNumber, hsCode),
+		ItemQuantity: newValue(itemQuantity, newPieceUnit()),
+		UnitPrice:    nil,
+		Type:         "cargo:Item",
+	}
+}
+
+func newValue(numericalValue string, unit *CodeListElement) *Value {
+	return &Value{
+		Type:           "cargo:Value",
+		NumericalValue: numericalValue,
+		Unit:           unit,
+	}
+}
+
+func newPieceUnit() *CodeListElement {
+	const pieceUnitCode = "H87"
+	const pieceUnitCodeListReference = "https://docs.peppol.eu/poacc/billing/3.0/codelist/UNECERec20/"
+	const pieceUnitCodeListVersion = "Revision 11e"
+	return newCodeListElement(pieceUnitCode, pieceUnitCodeListReference, pieceUnitCodeListVersion)
+}
+
+type Piece struct {
+	Type             string             `json:"@type"`
+	ContainedItems   []*Item            `json:"cargo:containedItems,omitempty"`
+	OtherIdentifiers []*OtherIdentifier `json:"cargo:otherIdentifiers,omitempty"`
+	GoodsDescription string             `json:"cargo:goodsDescription,omitempty"`
+}
+
+func newPiece(items []*Item, boxNumber, goodsDescription string) *Piece {
+	return &Piece{
+		Type:             "cargo:Piece",
+		ContainedItems:   items,
+		OtherIdentifiers: []*OtherIdentifier{NewOtherIdentifier("Box Number", boxNumber)},
+		GoodsDescription: goodsDescription,
+	}
+}
 
 type WaybillType string
 
@@ -508,10 +764,25 @@ func headersToMapping(headers []string) *SchemaSuggestion {
 				Content: "$D:SENDER NAME",
 				Column:  Ptr(AlphaToIndex("D")),
 			},
-			ShipperAddress: ColumnMapping{
+			ShipperAddressLine1: ColumnMapping{
 				Title:   "Shipper Address Line 1",
 				Content: "$E:SHIPPER ADD 1",
 				Column:  Ptr(AlphaToIndex("E")),
+			},
+			ShipperAddressLine2: ColumnMapping{
+				Title:   "Shipper Address Line 2",
+				Content: "$F:SHIPPER ADD 2",
+				Column:  Ptr(AlphaToIndex("F")),
+			},
+			ShipperAddressLine3: ColumnMapping{
+				Title:   "Shipper Address Line 3",
+				Content: "$G:SHIPPER ADD 3",
+				Column:  Ptr(AlphaToIndex("G")),
+			},
+			ShipperCity: ColumnMapping{
+				Title:   "Shipper City",
+				Content: "$H:SENDER CITY",
+				Column:  Ptr(AlphaToIndex("H")),
 			},
 			ShipperState: ColumnMapping{
 				Title:   "Shipper State/County/Province",
@@ -533,10 +804,25 @@ func headersToMapping(headers []string) *SchemaSuggestion {
 				Content: "$L:RECEIPIENT NAME",
 				Column:  Ptr(AlphaToIndex("L")),
 			},
-			RecipientAddress: ColumnMapping{
+			RecipientAddressLine1: ColumnMapping{
 				Title:   "Recipient Address Line 1",
 				Content: "$M:RECEIPIENT ADD 1",
 				Column:  Ptr(AlphaToIndex("M")),
+			},
+			RecipientAddressLine2: ColumnMapping{
+				Title:   "Recipient Address Line 2",
+				Content: "$N:RECEIPIENT ADD 2",
+				Column:  Ptr(AlphaToIndex("N")),
+			},
+			RecipientAddressLine3: ColumnMapping{
+				Title:   "Recipient Address Line 3",
+				Content: "$O:RECEIPIENT ADD 3",
+				Column:  Ptr(AlphaToIndex("O")),
+			},
+			RecipientCity: ColumnMapping{
+				Title:   "Recipient City",
+				Content: "$P:RECEIPIENT CITY",
+				Column:  Ptr(AlphaToIndex("P")),
 			},
 			RecipientState: ColumnMapping{
 				Title:   "Recipient State/County/Province",
@@ -548,8 +834,8 @@ func headersToMapping(headers []string) *SchemaSuggestion {
 				Content: "$R:RECEIPIENT POSTCODE",
 				Column:  Ptr(AlphaToIndex("R")),
 			},
-			RecipientCountry: ColumnMapping{
-				Title:   "Recipient State/County/Province",
+			RecipientCounty: ColumnMapping{
+				Title:   "Recipient County",
 				Content: "$Q:RECEIPIENT COUNTY",
 				Column:  Ptr(AlphaToIndex("Q")),
 			},
