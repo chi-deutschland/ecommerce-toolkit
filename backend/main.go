@@ -66,10 +66,9 @@ func main() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout})
 	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 
-	http.Handle("/schema", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type,access-control-allow-origin, access-control-allow-headers")
+	mux := http.NewServeMux()
 
+	mux.Handle("/schema", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		file, err := excelize.OpenReader(r.Body)
 		if err != nil {
 			log.Err(err).Msg("read excel")
@@ -119,10 +118,7 @@ func main() {
 
 	}))
 
-	http.Handle("/pipeline", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type,access-control-allow-origin, access-control-allow-headers")
-
+	mux.Handle("/pipeline", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			log.Err(err).Msg("error")
@@ -145,9 +141,7 @@ func main() {
 		}
 	}))
 
-	http.Handle("/pipelines/{pipeline}", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type,access-control-allow-origin, access-control-allow-headers")
+	mux.Handle("/pipelines/{pipeline}", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		pipelineName := r.PathValue("pipeline")
 		pipeline, err := readPipeline(pipelineName)
@@ -168,10 +162,7 @@ func main() {
 		}
 	}))
 
-	http.Handle("/pipelines/{pipeline}/input", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type,access-control-allow-origin, access-control-allow-headers")
-
+	mux.Handle("/pipelines/{pipeline}/input", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		pipelineName := r.PathValue("pipeline")
 		pipeline, err := readPipeline(pipelineName)
 		if err != nil {
@@ -221,9 +212,32 @@ func main() {
 		w.Write([]byte(`{ "message": "Hello Tim :)" }`))
 	}))
 
-	if err := http.ListenAndServe(":80", nil); err != nil {
+	if err := http.ListenAndServe(":80", logMiddleware(CORSMiddleware(mux))); err != nil {
 		log.Fatal().Err(err).Msg("http server")
 	}
+}
+
+func logMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Debug().Str("method", r.Method).Str("url", r.URL.String()).Msg("HTTP request")
+		next.ServeHTTP(w, r)
+	})
+}
+
+func CORSMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*") // change this never :P
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(204)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
 
 const PIPELINE_DIR = "pipelines"
