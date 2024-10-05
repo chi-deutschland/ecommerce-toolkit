@@ -35,7 +35,7 @@
       },
       "regionCode": {
         "@type": "CodeListElement",
-        "code": "$I: Ship State",
+        "code": "$I:Ship State",
         "codeListVersion": "3166-2",
         "codeListReference": "https://www.iso.org/obp/ui/#iso:code:3166"
       },
@@ -59,7 +59,7 @@
       "@type": "Party",
       "partyDetails": {
         "@type": "LogisticsAgent",
-        "name": "$L: RECEIPIENT NAME",
+        "name": "$L:RECEIPIENT NAME",
         "contactDetails": [
           {
             "@type": "ContactDetail",
@@ -79,7 +79,7 @@
       "@type": "Party",
       "partyDetails": {
         "@type": "LogisticsAgent",
-        "name": "$D: SENDER NAME"
+        "name": "$D:SENDER NAME"
       },
       "partyRole": {
         "@type": "CodeListElement",
@@ -102,12 +102,12 @@
                 {
                   "@type": "OtherIdentifier",
                   "otherIdentifierType": "SKU",
-                  "textualValue": "$X: SKU NUMBER"
+                  "textualValue": "$X:SKU NUMBER"
                 }
               ],
               "hsCode": {
                 "@type": "CodeListElement",
-                "code": "$Z: ITEM HS CODE",
+                "code": "$Z:ITEM HS CODE",
                 "codeListVersion": "2024",
                 "codeListReference": "www.tariffnumber.com"
               },
@@ -115,7 +115,7 @@
             },
             "itemQuantity": {
                 "@type": "Value",
-                "numericalValue": "$AB: ITEM QUANTITY",
+                "numericalValue": "$AB:ITEM QUANTITY",
                 "unit": {
                     "@type": "CodeListElement",
                     "code": "H87",
@@ -125,8 +125,8 @@
             },
             "unitPrice": {
               "@type": "CurrencyValue",
-              "numericalValue": "$AB: UNIT VALUE",
-              "currencyUnit": "$W: Currency"
+              "numericalValue": "$AB:UNIT VALUE",
+              "currencyUnit": "$W:Currency"
             }
           }
         ],
@@ -134,16 +134,16 @@
           {
             "@type": "OtherIdentifier",
             "otherIdentifierType": "Box Number",
-            "textualValue": "$C: Box Number"
+            "textualValue": "$C:Box Number"
           }
         ],
-        "goodsDescription": "$Y: ITEM DESCRIPTION1",
-        "slac": "$AA: ITEM QUANTITY"
+        "goodsDescription": "$Y:ITEM DESCRIPTION1",
+        "slac": "$AA:ITEM QUANTITY"
       }
     ],
     "totalGrossWeight": {
       "@type": "Value",
-      "numericalValue": "$U: GROSS WEIGHT (KG)",
+      "numericalValue": "$U:GROSS WEIGHT (KG)",
       "unit": {
         "@type": "CodeListElement",
         "code": "KGM",
@@ -152,6 +152,6 @@
     }
   },
   "waybillType": "HOUSE",
-  "shippingRefNo": "$B: BG-240827505XFSA52L",
+  "shippingRefNo": "$B:CUSTOMER REF",
   "waybillNumber": "$A:TRACKING NO."
 }
