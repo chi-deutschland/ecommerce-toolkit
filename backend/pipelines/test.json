@@ -1,1 +1,110 @@
-{	"name": "test",	"mapping": {		"masterWaybill": {			"constant": "250-91974783" 		},		"houseWaybill": {			"column": 0		}	}}
+{
+  "name": "test",
+  "mapping": {
+    "waybill": {
+      "title": "Master Waybill Number",
+      "content": "Filename",
+      "useFilename": true
+    },
+    "houseWaybill": {
+      "title": "House Waybill Number",
+      "content": "$A:TRACKING NO.",
+      "column": 0
+    },
+    "shippingReference": {
+      "title": "HAWB Shipping Reference Number",
+      "content": "$B:CUSTOMER REF",
+      "column": 1
+    },
+    "boxNumber": {
+      "title": "Box Number",
+      "content": "$C:Box Number",
+      "column": 2
+    },
+    "shipperName": {
+      "title": "Shipper Name",
+      "content": "$D:SENDER NAME",
+      "column": 3
+    },
+    "shipperAddress": {
+      "title": "Shipper Address Line 1",
+      "content": "$E:SHIPPER ADD 1",
+      "column": 4
+    },
+    "shipperState": {
+      "title": "Shipper State/County/Province",
+      "content": "$I:Ship State",
+      "column": 8
+    },
+    "shipperPostcode": {
+      "title": "Shipper Address Line 5",
+      "content": "$J:SENDER POSTCODE",
+      "column": 9
+    },
+    "shipperCountry": {
+      "title": "Shipper Country",
+      "content": "$K:SENDER COUNTRY",
+      "column": 10
+    },
+    "recipientName": {
+      "title": "Recipient Name",
+      "content": "$L:RECEIPIENT NAME",
+      "column": 11
+    },
+    "recipientAddress": {
+      "title": "Recipient Address Line 1",
+      "content": "$M:RECEIPIENT ADD 1",
+      "column": 12
+    },
+    "recipientState": {
+      "title": "Recipient State/County/Province",
+      "content": "$Q:RECEIPIENT COUNTY",
+      "column": 16
+    },
+    "recipientPostcode": {
+      "title": "Recipient Address Line 5",
+      "content": "$R:RECEIPIENT POSTCODE",
+      "column": 17
+    },
+    "recipientCountry": {
+      "title": "Recipient State/County/Province",
+      "content": "$Q:RECEIPIENT COUNTY",
+      "column": 16
+    },
+    "totalShipmentGrossWeight": {
+      "title": "Total Shipment Gross Weight",
+      "content": "$U:GROSS WEIGHT (KG)",
+      "column": 20
+    },
+    "itemUnitPriceConcurrency": {
+      "title": "Item Unit Price Currency",
+      "content": "$W:Currency",
+      "column": 22
+    },
+    "productSku": {
+      "title": "Product SKU",
+      "content": "$X:SKU NUMBER",
+      "column": 23
+    },
+    "shipmentGoodsDescription": {
+      "title": "Shipment Goods Description",
+      "content": "$Y:ITEM DESCRIPTION1",
+      "column": 24
+    },
+    "productHSCode": {
+      "title": "Product HS Code",
+      "content": "$Z:ITEM HS CODE",
+      "column": 25
+    },
+    "itemQuantity": {
+      "title": "Item Quantity",
+      "content": "$AA:ITEM QUANTITY",
+      "column": 26
+    },
+    "itemPrice": {
+      "title": "Item Price",
+      "content": "$AB:UNIT VALUE",
+      "column": 27
+    }
+  }
+}

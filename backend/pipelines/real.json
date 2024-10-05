@@ -1,0 +1,11 @@
+{
+	"name": "real",
+	"mapping": {
+		"masterWaybill": {
+			"column": 0
+		},
+		"houseWaybill": {
+			"column": 3
+		}
+	}
+}
