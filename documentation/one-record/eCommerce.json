@@ -6,34 +6,21 @@
       "@type": "Address",
       "country": {
         "@type": "CodeListElement",
-        "code": "TODO: Manual Input",
+        "code": "Manual Input",
         "codeListReference": "https://vocabulary.uncefact.org/CountryId"
-      },
-      "cityCode": {
-        "@type": "CodeListElement",
-        "TODO": "ignore???",
-        "code": "TODO LLM Match $P:RECEIPIENT CITY",
-        "codeListVersion": "TODO 2021-02",
-        "codeListReference": "TODO https://en.wikipedia.org/wiki/ISO_3166-2"
-      },
-      "postalCode": {
-        "@type": "CodeListElement",
-        "TODO": "ignore???",
-        "code": "TODO LLM match $R:RECEIPIENT POSTCODE",
-        "codeListVersion": "TODO 2021-02",
-        "codeListReference": "TODO https://en.wikipedia.org/wiki/ISO_3166-2"
       },
       "regionCode": {
         "@type": "CodeListElement",
-        "TODO": "ignore???",
-        "code": "TODO LLM match: $Q: RECEIPIENT COUNTY",
-        "codeListVersion": "TODO 2021-02",
-        "codeListReference": "TODO https://en.wikipedia.org/wiki/ISO_3166-2"
+        "code": "LLM:$Q:RECEIPIENT COUNTY",
+        "codeListVersion": "3166-2",
+        "codeListReference": "https://www.iso.org/obp/ui/#iso:code:3166"
       },
       "streetAddressLines": [
         "$M:RECEIPIENT ADD 1",
         "$N:RECEIPIENT ADD 2",
-        "$O:RECEIPIENT ADD 3"
+        "$O:RECEIPIENT ADD 3",
+        "$P:RECEIPIENT CITY",
+        "$R:RECEIPIENT POSTCODE"
       ]
     }
   },
@@ -46,39 +33,26 @@
         "code": "$K:SENDER COUNTRY",
         "codeListReference": "https://vocabulary.uncefact.org/CountryId"
       },
-      "cityCode": {
-        "TODO": "ignore???",
-        "@type": "CodeListElement",
-        "code": "$H:SENDER CITY",
-        "codeListVersion": "TODO TODO 2021-02",
-        "codeListReference": "https://en.wikipedia.org/wiki/ISO_3166-2"
-      },
-      "postalCode": {
-        "TODO": "ignore???",
-        "@type": "CodeListElement",
-        "code": "$J:SENDER POSTCODE",
-        "codeListVersion": "TODO 2021-02",
-        "codeListReference": "https://en.wikipedia.org/wiki/ISO_3166-2"
-      },
       "regionCode": {
-        "TODO": "ignore???",
         "@type": "CodeListElement",
         "code": "$I: Ship State",
-        "codeListVersion": "TODO 2021-02",
-        "codeListReference": "https://en.wikipedia.org/wiki/ISO_3166-2"
+        "codeListVersion": "3166-2",
+        "codeListReference": "https://www.iso.org/obp/ui/#iso:code:3166"
       },
       "streetAddressLines": [
         "$E:SHIPPER ADD 1",
         "$F:SHIPPER ADD 2",
-        "$G:SHIPPER ADD 3"
+        "$G:SHIPPER ADD 3",
+        "$H:SENDER CITY",
+        "$J:SENDER POSTCODE"
       ]
     }
   },
-  "masterWaybill" : {
+  "masterWaybill": {
     "@type": "Waybill",
     "waybillType": "MASTER",
-    "waybillNumber": "TODO: FROM MANUAL INPUT",
-    "waybillPrefix": "TODO: FROM MANUAL INPUT"
+    "waybillNumber": "Manual input or File Name",
+    "waybillPrefix": "Manual input or File Name"
   },
   "involvedParties": [
     {
@@ -88,10 +62,12 @@
         "name": "$L: RECEIPIENT NAME",
         "contactDetails": [
           {
+            "@type": "ContactDetail",
             "contactDetailType": "EMAIL",
             "textualValue": "$S:RECEPIENT EMAIL"
           },
           {
+            "@type": "ContactDetail",
             "contactDetailType": "PHONE",
             "textualValue": "$T:PHONE NUMBER"
           }
@@ -107,10 +83,9 @@
       },
       "partyRole": {
         "@type": "CodeListElement",
-        "TODO": "SHP as code or complete URI as codeListReference?",
         "code": "SHP",
         "codeListVersion": "1.0.0",
-        "codeListReference": "https://onerecord.iata.org/ns/coreCodeLists#ParticipantIdentifier_SHP"
+        "codeListReference": "https://onerecord.iata.org/ns/coreCodeLists"
       }
     }
   ],
@@ -123,20 +98,31 @@
           {
             "ofProduct": {
               "@type": "Product",
-              "otherIdentifiers": "TODO: OtherIdentifier (n) ---> SKU??",
+              "otherIdentifiers": [
+                {
+                  "@type": "OtherIdentifier",
+                  "otherIdentifierType": "SKU",
+                  "textualValue": "$X: SKU NUMBER"
+                }
+              ],
               "hsCode": {
                 "@type": "CodeListElement",
                 "code": "$Z: ITEM HS CODE",
-                "codeListVersion": "TODO: 2021-02",
-                "codeListReference": "TODO: https://en.wikipedia.org/wiki/Harmonized_System"
+                "codeListVersion": "2024",
+                "codeListReference": "www.tariffnumber.com"
               },
-              "commodityItemNumber": "TODO: string ---> SKU??",
-              "hsCommodityName": "TODO: Enrich with LLM from $Z: ITEM HS CODE",
-              "hsType": "TODO: Enrich with LLM from $Z: ITEM HS CODE",
-              "uniqueIdentifier": "TODO: string -----> SKU??"
+              "hsType": "UN Standard International Trade Classification"
             },
-            "itemQuantity": "TODO: Value --> here or in pieces?",
-            "otherIdentifiers": "TODO: OtherIdentifier (n) ---> SKU??",
+            "itemQuantity": {
+                "@type": "Value",
+                "numericalValue": "$AB: ITEM QUANTITY",
+                "unit": {
+                    "@type": "CodeListElement",
+                    "code": "H87",
+                    "codeListVersion": "Revision 11e",
+                    "codeListReference": "https://docs.peppol.eu/poacc/billing/3.0/codelist/UNECERec20/"
+                }
+            },
             "unitPrice": {
               "@type": "CurrencyValue",
               "numericalValue": "$AB: UNIT VALUE",
@@ -146,23 +132,13 @@
         ],
         "otherIdentifiers": [
           {
-            "otherIdentifierType": "TODO: SKU",
-            "textualValue": "$X: SKU NUMBER"
-          },
-          {
-            "TODO": "is there a better place for this?",
-            "otherIdentifierType": "TODO: Box Number",
+            "@type": "OtherIdentifier",
+            "otherIdentifierType": "Box Number",
             "textualValue": "$C: Box Number"
           }
         ],
-        "loadType": "TODO: ( BULK, LOOSE, PALLET, UNIT_LOAD_DEVICE )",
         "goodsDescription": "$Y: ITEM DESCRIPTION1",
-        "packagedeIdentifier": "TODO: string --> SKU??",
-        "slac": "TODO: confirm $AA: ITEM QUANTITY",
-        "textualHandlingInstructions": [
-          "TODO: LLM Enrich $Y: ITEM DESCRIPTION1??"
-        ],
-        "upid": "TODO: string --> SKU? Box Number?"
+        "slac": "$AA: ITEM QUANTITY"
       }
     ],
     "totalGrossWeight": {
@@ -177,8 +153,5 @@
   },
   "waybillType": "HOUSE",
   "shippingRefNo": "$B: BG-240827505XFSA52L",
-  "waybillNumber": "$A:TRACKING NO.",
-
-  "TODO": "SKU: where to use it?",
-  "TODO": "Quantity: where to specify it?"
+  "waybillNumber": "$A:TRACKING NO."
 }
