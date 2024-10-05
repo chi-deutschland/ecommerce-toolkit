@@ -142,6 +142,39 @@ func main() {
 		}
 	}))
 
+	mux.Handle("/pipelines", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		files, err := os.ReadDir(PIPELINE_DIR)
+		if err != nil {
+			log.Err(err).Msg("error")
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		pipelines := make([]*Pipeline, 0, len(files))
+		for _, file := range files {
+			f, err := os.Open(fmt.Sprintf("%s/%s", PIPELINE_DIR, file.Name()))
+			if err != nil {
+				log.Err(err).Msg("read pipelines")
+				continue
+			}
+			dec := json.NewDecoder(f)
+			var pipeline Pipeline
+			if err := dec.Decode(&pipeline); err != nil {
+				log.Err(err).Msg("decode pipelines")
+				continue
+			}
+			pipelines = append(pipelines, &pipeline)
+		}
+
+		enc := json.NewEncoder(w)
+		if err := enc.Encode(&pipelines); err != nil {
+			log.Err(err).Msg("write pipelines")
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+	}))
+
 	mux.Handle("/pipelines/{pipeline}", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		pipelineName := r.PathValue("pipeline")
