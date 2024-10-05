@@ -1,0 +1,157 @@
+{
+  "@type": "Waybill",
+  "arrivalLocation": {
+    "@type": "Location",
+    "address": {
+      "@type": "Address",
+      "country": {
+        "@type": "CodeListElement",
+        "code": "Manual Input",
+        "codeListReference": "https://vocabulary.uncefact.org/CountryId"
+      },
+      "regionCode": {
+        "@type": "CodeListElement",
+        "code": "LLM:$Q:RECEIPIENT COUNTY",
+        "codeListVersion": "3166-2",
+        "codeListReference": "https://www.iso.org/obp/ui/#iso:code:3166"
+      },
+      "streetAddressLines": [
+        "$M:RECEIPIENT ADD 1",
+        "$N:RECEIPIENT ADD 2",
+        "$O:RECEIPIENT ADD 3",
+        "$P:RECEIPIENT CITY",
+        "$R:RECEIPIENT POSTCODE"
+      ]
+    }
+  },
+  "departureLocation": {
+    "@type": "Location",
+    "address": {
+      "@type": "Address",
+      "country": {
+        "@type": "CodeListElement",
+        "code": "$K:SENDER COUNTRY",
+        "codeListReference": "https://vocabulary.uncefact.org/CountryId"
+      },
+      "regionCode": {
+        "@type": "CodeListElement",
+        "code": "$I:Ship State",
+        "codeListVersion": "3166-2",
+        "codeListReference": "https://www.iso.org/obp/ui/#iso:code:3166"
+      },
+      "streetAddressLines": [
+        "$E:SHIPPER ADD 1",
+        "$F:SHIPPER ADD 2",
+        "$G:SHIPPER ADD 3",
+        "$H:SENDER CITY",
+        "$J:SENDER POSTCODE"
+      ]
+    }
+  },
+  "masterWaybill": {
+    "@type": "Waybill",
+    "waybillType": "MASTER",
+    "waybillNumber": "Manual input or File Name",
+    "waybillPrefix": "Manual input or File Name"
+  },
+  "involvedParties": [
+    {
+      "@type": "Party",
+      "partyDetails": {
+        "@type": "LogisticsAgent",
+        "name": "$L:RECEIPIENT NAME",
+        "contactDetails": [
+          {
+            "@type": "ContactDetail",
+            "contactDetailType": "EMAIL",
+            "textualValue": "$S:RECEPIENT EMAIL"
+          },
+          {
+            "@type": "ContactDetail",
+            "contactDetailType": "PHONE",
+            "textualValue": "$T:PHONE NUMBER"
+          }
+        ],
+        "contactRole": "CUSTOMER_CONTACT"
+      }
+    },
+    {
+      "@type": "Party",
+      "partyDetails": {
+        "@type": "LogisticsAgent",
+        "name": "$D:SENDER NAME"
+      },
+      "partyRole": {
+        "@type": "CodeListElement",
+        "code": "SHP",
+        "codeListVersion": "1.0.0",
+        "codeListReference": "https://onerecord.iata.org/ns/coreCodeLists"
+      }
+    }
+  ],
+  "shipment": {
+    "@type": "Shipment",
+    "pieces": [
+      {
+        "@type": "Piece",
+        "containedItems": [
+          {
+            "ofProduct": {
+              "@type": "Product",
+              "otherIdentifiers": [
+                {
+                  "@type": "OtherIdentifier",
+                  "otherIdentifierType": "SKU",
+                  "textualValue": "$X:SKU NUMBER"
+                }
+              ],
+              "hsCode": {
+                "@type": "CodeListElement",
+                "code": "$Z:ITEM HS CODE",
+                "codeListVersion": "2024",
+                "codeListReference": "www.tariffnumber.com"
+              },
+              "hsType": "UN Standard International Trade Classification"
+            },
+            "itemQuantity": {
+                "@type": "Value",
+                "numericalValue": "$AB:ITEM QUANTITY",
+                "unit": {
+                    "@type": "CodeListElement",
+                    "code": "H87",
+                    "codeListVersion": "Revision 11e",
+                    "codeListReference": "https://docs.peppol.eu/poacc/billing/3.0/codelist/UNECERec20/"
+                }
+            },
+            "unitPrice": {
+              "@type": "CurrencyValue",
+              "numericalValue": "$AB:UNIT VALUE",
+              "currencyUnit": "$W:Currency"
+            }
+          }
+        ],
+        "otherIdentifiers": [
+          {
+            "@type": "OtherIdentifier",
+            "otherIdentifierType": "Box Number",
+            "textualValue": "$C:Box Number"
+          }
+        ],
+        "goodsDescription": "$Y:ITEM DESCRIPTION1",
+        "slac": "$AA:ITEM QUANTITY"
+      }
+    ],
+    "totalGrossWeight": {
+      "@type": "Value",
+      "numericalValue": "$U:GROSS WEIGHT (KG)",
+      "unit": {
+        "@type": "CodeListElement",
+        "code": "KGM",
+        "codeListReference": "https://vocabulary.uncefact.org/WeightUnitMeasureCode"
+      }
+    }
+  },
+  "waybillType": "HOUSE",
+  "shippingRefNo": "$B:CUSTOMER REF",
+  "waybillNumber": "$A:TRACKING NO."
+}
