@@ -595,8 +595,8 @@ func headersToMapping(headers []string) *SchemaSuggestion {
 
 func AlphaToIndex(b string) int {
 	index := 0
-	for _, r := range b {
-		index += int('A') - int(r)
+	for i, r := range b {
+		index += int(r) - int('A') + i*26
 	}
 	return index
 }
