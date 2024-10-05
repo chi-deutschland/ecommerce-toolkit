@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"unicode/utf8"
@@ -210,6 +211,18 @@ func main() {
 
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{ "message": "Hello Tim :)" }`))
+	}))
+
+	mux.Handle("/ai/{hscode}/{term}", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hscode := r.PathValue("hscode")
+		term := r.PathValue("term")
+		ok, err := verifyHSCodeWithAI(hscode, term)
+		if err != nil {
+			log.Err(err).Msg("ai")
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		fmt.Fprintf(w, "%t", ok)
 	}))
 
 	if err := http.ListenAndServe(":80", logMiddleware(CORSMiddleware(mux))); err != nil {
@@ -557,4 +570,37 @@ func AlphaToIndex(b string) int {
 
 func Ptr[T any](v T) *T {
 	return &v
+}
+
+type AIAnswer struct {
+	Suggestions []AISuggestion `json:"suggestions"`
+}
+
+type AISuggestion struct {
+	Code  string
+	Score float32
+}
+
+func verifyHSCodeWithAI(hscode, description string) (bool, error) {
+	url := fmt.Sprintf("https://www.tariffnumber.com/api/v2/cnSuggest?term=%s&lang=en", url.PathEscape(description))
+	resp, err := http.Get(url)
+	if err != nil {
+		return false, err
+	}
+	var answer AIAnswer
+	dec := json.NewDecoder(resp.Body)
+	if err := dec.Decode(&answer); err != nil {
+		return false, err
+	}
+
+	for len(hscode) > 8 {
+		hscode = hscode[:8]
+
+	}
+	for _, s := range answer.Suggestions {
+		if strings.HasPrefix(s.Code, hscode) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
