@@ -115,7 +115,7 @@
             },
             "itemQuantity": {
                 "@type": "Value",
-                "numericalValue": "$AB:ITEM QUANTITY",
+                "numericalValue": "$AA:ITEM QUANTITY",
                 "unit": {
                     "@type": "CodeListElement",
                     "code": "H87",
@@ -137,8 +137,7 @@
             "textualValue": "$C:Box Number"
           }
         ],
-        "goodsDescription": "$Y:ITEM DESCRIPTION1",
-        "slac": "$AA:ITEM QUANTITY"
+        "goodsDescription": "$Y:ITEM DESCRIPTION1"
       }
     ],
     "totalGrossWeight": {
