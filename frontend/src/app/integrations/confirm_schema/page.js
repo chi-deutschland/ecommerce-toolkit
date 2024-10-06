@@ -1,55 +1,135 @@
 
 "use client";
-import React, { useContext } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { GlobalContext } from '@/context/GlobalContext'; // Adjust the import path as needed
+import React, { useState, useContext } from 'react';
+import { Card, CardHeader, CardTitle, CardContent, Button } from '@/components/ui/card';
+import { GlobalContext } from '@/context/GlobalContext';
+import { useRouter } from 'next/navigation';
+import Select from 'react-select';
+import axios from 'axios';
 
-
-const cardData = [
-  { title: "Confirm Schema", content: "Schema has been confirmed." },
-  { title: "Card 22", content: "Content for card 2." },
-  { title: "Card 3", content: "Content for card 3." },
-  { title: "Card 4", content: "Content for card 4." },
-  { title: "Card 5", content: "Content for card 5." },
-  { title: "Card 6", content: "Content for card 6." },
-  { title: "Card 7", content: "Content for card 7." },
-  { title: "Card 8", content: "Content for card 8." },
-  { title: "Card 9", content: "Content for card 9." },
-  { title: "Card 10", content: "Content for card 10." }
-];
-
-const bgColors = [
-  "bg-gray-200",
-  "bg-blue-200",
-  "bg-green-200",
-  "bg-yellow-200",
-  "bg-red-200",
-  "bg-purple-200",
-  "bg-pink-200",
-  "bg-indigo-200",
-  "bg-teal-200",
-  "bg-orange-200"
-];
 
 const ConfirmSchemaPage = () => {
-  const { schema } = useContext(GlobalContext);
-  console.log(schema);
+  const { schema, setSchema } = useContext(GlobalContext);
+  const [selectedValues, setSelectedValues] = useState({});
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+
+
+
+  const handleSubmit = async () => {
+    setLoading(true);
+
+    try {
+      const response = await axios.post('http://35.246.224.221/pipeline', schema);
+      console.log('Response:', response.data);
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
+    }
+    setLoading(true);
+    setTimeout(() => {
+      router.push('/integrations/one_record');
+    }, 2500);
+  };
+
+  const dropDownItems = Object.values(schema)
+    .filter(item => item.content)
+    .map((item, index) => ({
+      value: item.content,
+      label: item.content,
+    }));
+
+  const customStyles = {
+    control: (provided) => ({
+      ...provided,
+      backgroundColor: '#333',
+      color: '#fff',
+    }),
+    singleValue: (provided) => ({
+      ...provided,
+      color: '#fff',
+    }),
+    menu: (provided) => ({
+      ...provided,
+      backgroundColor: '#333',
+    }),
+    option: (provided, state) => ({
+      ...provided,
+      backgroundColor: state.isSelected ? '#555' : '#333',
+      color: '#fff',
+      '&:hover': {
+        backgroundColor: '#444',
+      },
+    }),
+  };
+
+  const handleSelectChange = (selectedOption, cardKey) => {
+    setSelectedValues(prevState => ({
+      ...prevState,
+      [cardKey]: selectedOption.value,
+    }));
+
+    setSchema(prevSchema => ({
+      ...prevSchema,
+      [cardKey]: {
+        ...prevSchema[cardKey],
+        content: selectedOption.value,
+      },
+    }));
+  };
+
+  console.log('schema:', schema);
+
   return (
-    <div className="flex justify-center items-center min-h-screen">
+    <div className="flex justify-center min-h-screen">
       <div className="flex flex-col items-center gap-5">
-        <h1 className="mt-16 mb-8 text-4xl">Confirm the Schema</h1>
-        <div className="container p-5 inline-block rounded-lg">
+        <div className="flex items-center justify-center mt-16 mb-8">
+          <div className="flex items-center">
+            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-green-600 text-xl">✓</div>
+              <div className="w-32 h-1 bg-green-600 mx-2"></div>
+              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-green-600 text-xl">2</div>
+              <div className="w-32 h-1 bg-gray-300 mx-2"></div>
+              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-300 text-xl">3</div>
+            </div>
+          </div>
+        <div className="container p-5 inline-block rounded-lg relative">
+          {loading && (
+            <div className="absolute inset-0 flex justify-center items-end bg-gray-500 bg-opacity-50 z-50">
+              <span className="loader mb-80"></span>
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {cardData.map((card, index) => (
-              <Card key={index} className="w-[200px] h-[300px]">
-                <CardHeader className={`rounded-t-lg ${bgColors[index % bgColors.length]} text-gray-800`}>
-                  <CardTitle>{card.title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p>{card.content}</p>
-                </CardContent>
-              </Card>
+            {Object.entries(schema).map(([key, card]) => (
+              key !== 'headers' && (
+                <Card key={key} className="w-[300px] h-[350px]">
+                  <CardHeader className={`h-[75px] rounded-t-lg bg-gray-400 bg-opacity-55 text-gray-200`}>
+                    <CardTitle>{card.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-col justify-between h-full">
+                      <p className="font-bold text-lg mt-4">mapped value:</p>
+                      <p  dangerouslySetInnerHTML={{ __html: card.content }}></p>
+                      <p className="font-bold text-lg mt-8">corrected value:</p>
+                      <Select
+                        options={dropDownItems}
+                        styles={customStyles}
+                        onChange={(selectedOption) => handleSelectChange(selectedOption, key)}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              )
             ))}
+          </div>
+          <div className="flex justify-end">
+            <button
+              onClick={handleSubmit}
+              className="h-[50px] mt-8 px-4 py-2 bg-blue-500 text-white rounded"
+              disabled={loading}
+            >
+              {loading ? 'Submitting...' : 'Submit Schema'}
+            </button>
           </div>
         </div>
       </div>

@@ -1,15 +1,16 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useContext } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { useAuth } from '@/context/AuthContext';
+import { GlobalContext } from '@/context/GlobalContext';
 
 export default function Login() {
-  const [username, setUsername] = useState('');
+  const { username, setUsername } = useContext(GlobalContext);
   const [password, setPassword] = useState('');
   const { setIsLoggedIn } = useAuth();
   const router = useRouter();
@@ -18,19 +19,20 @@ export default function Login() {
     e.preventDefault();
     console.log('Username:', username);
     console.log('Password:', password);
+    setUsername(username);
     setIsLoggedIn(true);
     router.push('/integrations');
   };
 
   return (
-    <div>
-      <div className="flex justify-center items-center mt-8 scale-up mb-16">
+    <div className="mt-8">
+      <div className="flex justify-center items-center mt-16 scale-up mb-16 -ml-24">
         <div className="mt-1 block-left ml-4 w-2 h-2 bg-gray-500"></div>
         <div className="mb-2 block-left ml-4 w-2 h-2 bg-gray-600"></div>
         <div className="mt-3 block-left ml-4 w-2 h-2 bg-gray-700"></div>
         <div className="block-left ml-4 w-2 h-2 bg-gray-700"></div>
         <div className="ml-4 w-2 h-9 bg-gray-500 pipe"></div>
-        <div className="w-32 h-8 bg-gray-200 pipe text-dark text-gray-900">E-Comm Pipeline</div>
+        <div className="w-32 h-8 bg-gray-200 pipe text-dark text-gray-900 font-bold pl-1">E-Com Pipeline</div>
         <div className="mr-4 w-2 h-9 bg-gray-500 pipe"></div>
         <div className="uniform-block"></div>
       </div>
