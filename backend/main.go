@@ -345,7 +345,8 @@ func excelToOneRecord(pipeline *Schema, rows *excelize.Rows, filename string) (*
 			masterWaybill.WaybillNumber = suffix
 			masterWaybill.WaybillPrefix = prefix
 		} else if pipeline.MasterWaybillNumber.Constant != nil {
-			// TODO: review. There is no reason to have a constant master waybill number throughout the pipeline
+			// TODO: review. There is no reason to have a constant master waybill number throughout the pipeline,
+			//	but there might be a reason to have a constant value such as currency and destination country
 			prefix, suffix := SplitMawb(SanitizeMawb(*pipeline.MasterWaybillNumber.Constant))
 			masterWaybill.WaybillNumber = suffix
 			masterWaybill.WaybillPrefix = prefix
@@ -409,7 +410,7 @@ func excelToOneRecord(pipeline *Schema, rows *excelize.Rows, filename string) (*
 			)
 
 			if masterWaybill.HouseWaybills == nil {
-				masterWaybill.HouseWaybills = make(map[HouseWaybillNumber]*Waybill) // TODO: improve
+				masterWaybill.HouseWaybills = make(map[HouseWaybillNumber]*Waybill)
 			}
 			masterWaybill.HouseWaybills[HouseWaybillNumber(houseWaybillNumber)] = houseWaybill
 		}
@@ -428,7 +429,7 @@ func newShipment(pieces []*Piece, totalGrossWeight string) *Shipment {
 }
 
 func newTotalGrossWeight(totalGrossWeight string) *Value {
-	return newValue(totalGrossWeight, newCodeListElement("KGM", "https://vocabulary.uncefact.org/WeightUnitMeasureCode", "")) // TODO: move to consts
+	return newValue(totalGrossWeight, newCodeListElement("KGM", weightUnitCodeListReference, ""))
 }
 
 func newCustomer(customerName string) *Party {
@@ -444,16 +445,15 @@ type LogisticsAgent struct {
 
 type Party struct {
 	PartyDetails *LogisticsAgent  `json:"cargo:partyDetails,omitempty"`
-	PartyRole    *CodeListElement `json:"cargo:partyRole,omitempty"` // TODO: bug: does not show up. String also does not work.
+	PartyRole    *CodeListElement `json:"cargo:partyRole,omitempty"` // TODO: bug: does not show up in NE-ONE Play. String also does not work.
 	Type         string           `json:"@type"`
 }
 
 func newShipper(shipperName string) *Party {
-	// TODO: move strings to consts
 	return newParty(
 		shipperName,
 		nil,
-		newCodeListElement("SHP", "https://onerecord.iata.org/ns/coreCodeLists", "1.0.0"),
+		newCodeListElement("SHP", iataCoreCodeListReference, iataCoreCodeListVersion),
 	)
 }
 
@@ -474,7 +474,6 @@ func newLogisticsAgent(name string, contactRole *string) *LogisticsAgent {
 }
 
 func newLocation(countryCode, regionCode string, streetAddressLines []string) *Location {
-	// TODO: check if address exists
 	return &Location{
 		Address: newAddress(countryCode, regionCode, streetAddressLines),
 		Type:    "cargo:Location",
@@ -482,7 +481,6 @@ func newLocation(countryCode, regionCode string, streetAddressLines []string) *L
 }
 
 func newAddress(countryCode, regionCode string, streetAddressLines []string) *Address {
-	// TODO: check if address exists
 	return &Address{
 		Country:            newCountry(countryCode),
 		RegionCode:         newRegionCode(regionCode),
@@ -495,12 +493,28 @@ func newRegionCode(regionCode string) *CodeListElement {
 	return newCodeListElement(regionCode, regionCodeListReference, regionCodeListVersion)
 }
 
-// TODO: consider using specific type instead of all strings
+// TODO: consider using specific type instead of strings
 const (
 	regionCodeListReference = "https://www.iso.org/obp/ui/#iso:code:3166"
 	regionCodeListVersion   = "3166-2"
 
 	countryCodeListReference = "https://vocabulary.uncefact.org/CountryId"
+
+	iataCoreCodeListReference = "https://onerecord.iata.org/ns/coreCodeLists"
+	iataCoreCodeListVersion   = "1.0.0"
+
+	hsCodeType = "UN Standard International Trade Classification"
+
+	hsCodeListReference = "www.tariffnumber.com"
+	hsCodeListVersion   = "2024"
+
+	currencyCodeListReference = "https://vocabulary.uncefact.org/RevisedCurrencyCode"
+
+	pieceUnitCode              = "H87"
+	pieceUnitCodeListReference = "https://docs.peppol.eu/poacc/billing/3.0/codelist/UNECERec20/"
+	pieceUnitCodeListVersion   = "Revision 11e"
+
+	weightUnitCodeListReference = "https://vocabulary.uncefact.org/WeightUnitMeasureCode"
 )
 
 func newCodeListElement(code, reference, version string) *CodeListElement {
@@ -672,8 +686,6 @@ func NewProduct(skuNumber, hsCode string) *Product {
 		otherIdentifiers = []*OtherIdentifier{NewOtherIdentifier("SKU", skuNumber)}
 	}
 
-	const hsCodeType = "UN Standard International Trade Classification"
-
 	return &Product{
 		OtherIdentifiers: otherIdentifiers,
 		HsCode:           newHsCode(hsCode),
@@ -683,9 +695,6 @@ func NewProduct(skuNumber, hsCode string) *Product {
 }
 
 func newHsCode(hsCode string) *CodeListElement {
-	// TODO: organize consts
-	const hsCodeListReference = "www.tariffnumber.com"
-	const hsCodeListVersion = "2024"
 	return newCodeListElement(hsCode, hsCodeListReference, hsCodeListVersion)
 }
 
@@ -697,7 +706,6 @@ type Item struct {
 }
 
 func newItem(skuNumber, hsCode, itemQuantity, itemPrice, currency string) *Item {
-	const currencyCodeListReference = "https://vocabulary.uncefact.org/RevisedCurrencyCode"
 	return &Item{
 		OfProduct:    NewProduct(skuNumber, hsCode),
 		ItemQuantity: newValue(itemQuantity, newPieceUnit()),
@@ -715,9 +723,6 @@ func newValue(numericalValue string, unitCodeList *CodeListElement) *Value {
 }
 
 func newPieceUnit() *CodeListElement {
-	const pieceUnitCode = "H87"
-	const pieceUnitCodeListReference = "https://docs.peppol.eu/poacc/billing/3.0/codelist/UNECERec20/"
-	const pieceUnitCodeListVersion = "Revision 11e"
 	return newCodeListElement(pieceUnitCode, pieceUnitCodeListReference, pieceUnitCodeListVersion)
 }
 
