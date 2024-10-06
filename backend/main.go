@@ -250,12 +250,16 @@ func main() {
 		logisticsObjectUrl, err := sendWaybill(waybill)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(err.Error()))
+			if _, err := w.Write([]byte(err.Error())); err != nil {
+				log.Err(err)
+			}
 			return
 		}
 
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(fmt.Sprintf("Logistics Object URL: %s\n", logisticsObjectUrl)))
+		if _, err := fmt.Fprintf(w, "Logistics Object URL: %s\n", logisticsObjectUrl); err != nil {
+			log.Err(err)
+		}
+
 	}))
 
 	mux.Handle("/ai/{hscode}/{term}", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -607,7 +611,7 @@ type Waybill struct {
 	Shipment          *Shipment                       `json:"cargo:shipment,omitempty"`
 
 	// JSON-LD stuff
-	Context *Context `json:"@context,omitEmpty"`
+	Context *Context `json:"@context,omitempty"`
 	Type    string   `json:"@type"`
 }
 
