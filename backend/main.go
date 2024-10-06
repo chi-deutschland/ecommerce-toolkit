@@ -247,7 +247,7 @@ func main() {
 			return
 		}
 
-		err = sendWaybill(waybill)
+		logisticsObjectUrl, err := sendWaybill(waybill)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte(err.Error()))
@@ -255,7 +255,7 @@ func main() {
 		}
 
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{ "message": "Hello Tim :)" }`))
+		w.Write([]byte(fmt.Sprintf("Logistics Object URL: %s\n", logisticsObjectUrl)))
 	}))
 
 	mux.Handle("/ai/{hscode}/{term}", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -524,17 +524,17 @@ func newHouseWaybill() *Waybill {
 	}
 }
 
-func sendWaybill(waybill *Waybill) error {
+func sendWaybill(waybill *Waybill) (string, error) {
 	body, err := json.Marshal(waybill)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	logisticsObjectEndpoint := "http://your_ne_one_server_here/logistics-objects"
 
 	req, err := http.NewRequest(http.MethodPost, logisticsObjectEndpoint, bytes.NewReader(body))
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	auth := "Bearer your_token_here"
@@ -547,20 +547,17 @@ func sendWaybill(waybill *Waybill) error {
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if resp.StatusCode >= http.StatusBadRequest {
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return err
+			return "", err
 		}
-		return fmt.Errorf("Status %s, Body: %s", resp.Status, string(body))
+		return "", fmt.Errorf("Status %s, Body: %s", resp.Status, string(body))
 	}
 
-	// TODO: confirm that the waybill was created
-	log.Info().Str("Location", resp.Header.Get("Location")).Msg("Waybill created")
-
-	return nil
+	return resp.Header.Get("Location"), nil
 }
 
 type HouseWaybillNumber string
