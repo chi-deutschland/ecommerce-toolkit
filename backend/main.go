@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/rs/zerolog"
@@ -268,6 +269,17 @@ func main() {
 		ok, err := verifyHSCodeWithAI(hscode, term)
 		if err != nil {
 			log.Err(err).Msg("ai")
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		fmt.Fprintf(w, "%t", ok)
+	}))
+
+	mux.Handle("/sanctions/{name}", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		name := r.PathValue("name")
+		ok, err := searchSanctions(name)
+		if err != nil {
+			log.Err(err).Msg("sanctions")
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -968,6 +980,54 @@ func verifyHSCodeWithAI(hscode, description string) (bool, error) {
 	}
 	for _, s := range answer.Suggestions {
 		if strings.HasPrefix(s.Code, hscode) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+type SanctionResult struct {
+	ID         string    `json:"id"`
+	TargetType string    `json:"target_type"`
+	Source     string    `json:"source"`
+	SourceID   string    `json:"source_id"`
+	Names      []string  `json:"names"`
+	Positions  []string  `json:"positions"`
+	Remarks    *string   `json:"remarks"`
+	ListedOn   *string   `json:"listed_on"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
+func searchSanctions(name string) (bool, error) {
+	url := fmt.Sprintf("https://api.sanctions.network/rpc/search_sanctions?name=%s", url.PathEscape(name))
+	resp, err := http.Get(url)
+	if err != nil {
+		return false, err
+	}
+
+	var results []*SanctionResult
+	dec := json.NewDecoder(resp.Body)
+	if err := dec.Decode(&results); err != nil {
+		return false, err
+	}
+
+	for _, result := range results {
+		resultMatch := true
+		for _, subName := range strings.Split(name, " ") {
+			subName = strings.TrimSpace(subName)
+			matchSubName := false
+			for _, resultName := range result.Names {
+				if strings.Contains(resultName, subName) {
+					matchSubName = true
+					break
+				}
+			}
+			if !matchSubName {
+				resultMatch = false
+				break
+			}
+		}
+		if resultMatch {
 			return true, nil
 		}
 	}
