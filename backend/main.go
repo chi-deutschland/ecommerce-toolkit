@@ -247,7 +247,12 @@ func main() {
 			return
 		}
 
-		log.Debug().Interface("waybill", waybill).Msg("masterwaybill")
+		err = sendWaybill(waybill)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(err.Error()))
+			return
+		}
 
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{ "message": "Hello Tim :)" }`))
@@ -313,12 +318,19 @@ func readPipeline(pipelineName string) (*Pipeline, error) {
 func excelToOneRecord(pipeline *Schema, rows *excelize.Rows, filename string) (*Waybill, error) {
 	masterWaybill := NewMasterWaybill()
 
+	i := 0
 	for rows.Next() {
 		columns, err := rows.Columns()
 		if err != nil {
 			return nil, err
 		}
 		if len(columns) == 0 {
+			continue
+		}
+
+		houseWaybillNumber := columns[*pipeline.HouseWaybillNumber.Column]
+		if len(houseWaybillNumber) < 3 || houseWaybillNumber == pipeline.HouseWaybillNumber.Content[3:] {
+			// skip header line
 			continue
 		}
 
@@ -339,13 +351,14 @@ func excelToOneRecord(pipeline *Schema, rows *excelize.Rows, filename string) (*
 			masterWaybill.WaybillPrefix = prefix
 		}
 
-		houseWaybillNumber := columns[*pipeline.HouseWaybillNumber.Column]
 		var houseWaybill *Waybill
 
 		item := newItem(
 			columns[*pipeline.ProductSKU.Column],
 			columns[*pipeline.ProductHSCode.Column],
 			columns[*pipeline.ItemQuantity.Column],
+			columns[*pipeline.ItemPrice.Column],
+			columns[*pipeline.ItemUnitPriceConcurrency.Column],
 		)
 
 		piece := newPiece(
@@ -359,14 +372,11 @@ func excelToOneRecord(pipeline *Schema, rows *excelize.Rows, filename string) (*
 			houseWaybill.Shipment.Pieces = append(houseWaybill.Shipment.Pieces, piece)
 		} else {
 			houseWaybill = newHouseWaybill()
-
 			if pipeline.ShippingReference.Column != nil {
 				houseWaybill.ShippingRef = columns[*pipeline.ShippingReference.Column]
 			}
 
-			// TODO: check if address exists
-			// TODO: review hardcoded GB
-			arrivalCountryCode := "DE"
+			arrivalCountryCode := "DE" // TODO: implement dynamic arrival country code in pipeline
 			arrivalRegionCode := columns[*pipeline.RecipientCounty.Column]
 			arrivalStreetAddressLines := []string{
 				columns[*pipeline.RecipientAddressLine1.Column],
@@ -398,10 +408,13 @@ func excelToOneRecord(pipeline *Schema, rows *excelize.Rows, filename string) (*
 				columns[*pipeline.TotalShipmentGrossWeight.Column],
 			)
 
-			masterWaybill.HouseWaybills = map[HouseWaybillNumber]*Waybill{
-				HouseWaybillNumber(houseWaybillNumber): houseWaybill,
+			if masterWaybill.HouseWaybills == nil {
+				masterWaybill.HouseWaybills = make(map[HouseWaybillNumber]*Waybill) // TODO: improve
 			}
+			masterWaybill.HouseWaybills[HouseWaybillNumber(houseWaybillNumber)] = houseWaybill
 		}
+
+		i++
 	}
 	return masterWaybill, nil
 }
@@ -431,7 +444,7 @@ type LogisticsAgent struct {
 
 type Party struct {
 	PartyDetails *LogisticsAgent  `json:"cargo:partyDetails,omitempty"`
-	PartyRole    *CodeListElement `json:"cargo:partyRole,omitempty"`
+	PartyRole    *CodeListElement `json:"cargo:partyRole,omitempty"` // TODO: bug: does not show up. String also does not work.
 	Type         string           `json:"@type"`
 }
 
@@ -505,6 +518,7 @@ func newCountry(countryCode string) *CodeListElement {
 
 func newHouseWaybill() *Waybill {
 	return &Waybill{
+		Context:     nil,
 		WaybillType: WaybillTypeHouse,
 		Type:        "cargo:Waybill",
 	}
@@ -516,13 +530,18 @@ func sendWaybill(waybill *Waybill) error {
 		return err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, "TODO: URl", bytes.NewReader(body))
+	logisticsObjectEndpoint := "http://your_ne_one_server_here/logistics-objects"
+
+	req, err := http.NewRequest(http.MethodPost, logisticsObjectEndpoint, bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
+
+	auth := "Bearer your_token_here"
+
 	req.Header = map[string][]string{
 		"Accept":        {"application/ld+json"},
-		"Authorization": {"Bearer {{neone_server_access_token}}"},
+		"Authorization": {auth},
 		"Content-Type":  {"application/ld+json"},
 	}
 
@@ -537,6 +556,9 @@ func sendWaybill(waybill *Waybill) error {
 		}
 		return fmt.Errorf("Status %s, Body: %s", resp.Status, string(body))
 	}
+
+	// TODO: confirm that the waybill was created
+	log.Info().Str("Location", resp.Header.Get("Location")).Msg("Waybill created")
 
 	return nil
 }
@@ -574,17 +596,39 @@ type Waybill struct {
 	Shipment          *Shipment                       `json:"cargo:shipment,omitempty"`
 
 	// JSON-LD stuff
-	Context Context `json:"@context"`
-	Type    string  `json:"@type"`
+	Context *Context `json:"@context,omitEmpty"`
+	Type    string   `json:"@type"`
+}
+
+func (w *Waybill) MarshalJSON() ([]byte, error) {
+	type Alias Waybill
+	aux := &struct {
+		Context       *Context   `json:"@context,omitempty"`
+		HouseWaybills []*Waybill `json:"cargo:houseWaybills,omitempty"`
+		*Alias
+	}{
+		Alias:   (*Alias)(w),
+		Context: w.Context,
+	}
+
+	if w.HouseWaybills != nil {
+		aux.HouseWaybills = []*Waybill{}
+		for key, value := range w.HouseWaybills {
+			value.WaybillNumber = string(key)
+			aux.HouseWaybills = append(aux.HouseWaybills, value)
+		}
+	}
+
+	return json.Marshal(aux)
 }
 
 type Context struct {
-	Cargo string `json:"cargo"`
+	Cargo string `json:"cargo,omitempty"`
 }
 
 func NewMasterWaybill() *Waybill {
 	return &Waybill{
-		Context: Context{
+		Context: &Context{
 			Cargo: "https://onerecord.iata.org/ns/cargo#",
 		},
 		Type:        "cargo:Waybill",
@@ -601,7 +645,7 @@ type Shipment struct {
 type Value struct {
 	Type           string           `json:"@type"`
 	NumericalValue string           `json:"cargo:numericalValue,omitempty"`
-	Unit           *CodeListElement `json:"cargo:unit,omitempty"`
+	Unit           *CodeListElement `json:"cargo:unit,omitempty"` // TODO: some CodeListElement units on the ne one server string may work
 }
 
 type OtherIdentifier struct {
@@ -628,10 +672,9 @@ type Product struct {
 func NewProduct(skuNumber, hsCode string) *Product {
 	var otherIdentifiers []*OtherIdentifier
 	if skuNumber != "" {
-		otherIdentifiers = []*OtherIdentifier{NewOtherIdentifier("SKU", "")}
+		otherIdentifiers = []*OtherIdentifier{NewOtherIdentifier("SKU", skuNumber)}
 	}
 
-	// TODO: move to consts
 	const hsCodeType = "UN Standard International Trade Classification"
 
 	return &Product{
@@ -643,7 +686,7 @@ func NewProduct(skuNumber, hsCode string) *Product {
 }
 
 func newHsCode(hsCode string) *CodeListElement {
-	// TODO: move consts
+	// TODO: organize consts
 	const hsCodeListReference = "www.tariffnumber.com"
 	const hsCodeListVersion = "2024"
 	return newCodeListElement(hsCode, hsCodeListReference, hsCodeListVersion)
@@ -656,20 +699,21 @@ type Item struct {
 	Type         string   `json:"@type"`
 }
 
-func newItem(skuNumber, hsCode, itemQuantity string) *Item {
+func newItem(skuNumber, hsCode, itemQuantity, itemPrice, currency string) *Item {
+	const currencyCodeListReference = "https://vocabulary.uncefact.org/RevisedCurrencyCode"
 	return &Item{
 		OfProduct:    NewProduct(skuNumber, hsCode),
 		ItemQuantity: newValue(itemQuantity, newPieceUnit()),
-		UnitPrice:    nil,
+		UnitPrice:    newValue(itemPrice, newCodeListElement(currency, currencyCodeListReference, "")),
 		Type:         "cargo:Item",
 	}
 }
 
-func newValue(numericalValue string, unit *CodeListElement) *Value {
+func newValue(numericalValue string, unitCodeList *CodeListElement) *Value {
 	return &Value{
 		Type:           "cargo:Value",
 		NumericalValue: numericalValue,
-		Unit:           unit,
+		Unit:           unitCodeList,
 	}
 }
 
